@@ -11,7 +11,7 @@ const sens = 0.01;
 export const can = document.getElementById("can");
 export const scene = new THREE.Scene();
 export const render = new THREE.WebGLRenderer({ canvas: can, logarithmicDepthBuffer: true });
-export const camera = new THREE.PerspectiveCamera( 75, can.width / can.height, 0.1, 5000);
+export const camera = new THREE.PerspectiveCamera( 75, can.width / can.height, 0.1, 10000);
 
 camera.rotation.order = "YXZ";
 camera.dir = [0, -80];
@@ -65,7 +65,7 @@ function onMouseUp(event) {
 	can.releasePointerCapture(event.pointerId);
 }
 function onScroll(event) {
-	camera.zoomTarget += event.deltaY / 10;
+	camera.zoomTarget += event.deltaY / 2;
 	if (camera.zoomTarget < 5)
 		camera.zoomTarget = 5;
 	else if (camera.zoomTarget > camera.far)
