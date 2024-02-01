@@ -1,28 +1,80 @@
-<title> Magnetic Lens </title>
-
-<style>
-	#can {
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: 100vw !important;
-		height: 100vh !important;
-	}
-	* {
-		font-size: 110%;
-	}
-	#desc {
-		position: absolute;
-		left: 1vmin;
-		top: 1vmin;
-	}
-</style>
-
-<canvas id="can"></canvas>
-<div id="gui"></div>
-<div id="desc">
-	Use mouse (drag / scroll) to control camera
-</div>
-
-<script src="index.js" type="module" defer></script>
-<script src="main.js" type="module" defer></script>
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+	    <meta charset="utf-8">
+	    <title> Magnetic Lens </title>
+	    <meta http-equiv="content-language" content="en-gb">
+	    <meta name="viewport" content="width=device-width, initial-scale=1">
+	    <meta name="description" content="A magnetic lens simulation">
+	    <meta name="keywords" content="sollybunny mangetic lens simulation">
+		<style>
+			body {
+				overflow: hidden;
+			}
+			#can {
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 100vw !important;
+				height: 100vh !important;
+			}
+			#howto {
+				position: absolute;
+				left: 50vw;
+				transform: translateX(-50%);
+				top: 1vmin;
+			}
+			#desc {
+				position: absolute;
+				left: calc(1vmin + 33.3vh);
+				bottom: 1vmin;
+			}
+			#graphs {
+				position: absolute;
+				top: 0vmin;
+				left: 0vmin;
+				display: flex;
+				flex-direction: column;
+			}
+				#graphs > * {
+					outline: 1px solid rgba(0,0,0,0.5);
+					opacity: 0.9;
+					aspect-ratio: 1;
+					background: white;
+					width: 33.3vh;
+					height: 33.3vh;
+					position: relative;
+				}
+					#graphs > * > canvas {
+						top: 0;
+						left: 0;
+						width: 100%;
+						height: 100%;
+						position: absolute;
+					}
+					#graphs > * > div {
+						position: absolute;
+						left: 1vmin;
+						top: 1vmin;
+					}
+		</style>
+	</head>
+	<body>
+		<canvas id="can"></canvas>
+		<div id="gui"></div>
+		<div id="howto">
+			Use mouse (drag / scroll) to control camera <br>
+		</div>
+		<div id="desc">
+			This is a magnetic lens (<a href="https://en.wikipedia.org/wiki/Magnetic_lens">Wikipedia Article</a>), it can focus charged particles like an optical lens can for light <br>
+			It uses an approximation of the magnetic field (<a href="https://www.desmos.com/calculator/gqywbgojjw">Desmos Graph</a>) to simulate how a lens would work <br>
+		</div>
+		<div id="graphs">
+			<div title="XZ"><div>XZ</div><canvas id="graph-x"></canvas></div>
+			<div title="ZY"><div>ZY</div><canvas id="graph-y"></canvas></div>
+			<div title="ZX"><div>ZX</div><canvas id="graph-z"></canvas></div>
+		</div>
+		<script src="index.js" type="module" defer></script>
+		<script src="main.js" type="module" async defer></script>
+	</body>
+</html>
