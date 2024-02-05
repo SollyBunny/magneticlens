@@ -8,11 +8,11 @@ Note: y is the vertical direction where positive is up
 */
 
 const defaults = {
-	x_a: 4.49,
-	t_a: 0.135,
-	x_b: 3.355,
-	t_b: 0.16,
-	g_b: 13.7,
+	x_a: -0.614,
+	t_a: 1.62,
+	x_b: -1.9,
+	t_b: 0.84,
+	g_b: 5.09,
 	str: -11,
 	m: Math.log10(9.1e-31),
 	mneg: false,
@@ -22,12 +22,16 @@ const defaults = {
 	sepz: 0,
 	sepy: 10,
 	density: 0,
-	speed: 10,
+	speed: 5,
 	steps: 1000,
 	timeStep: 0.01,
 	colorbg: [255, 255, 255],
 	colora: [255, 0, 0],
 	colorb: [0, 0, 255],
+	colorvel: [255, 255, 0],
+	colorforce: [0, 255, 0],
+	colorfield: [255, 0, 0],
+	showglobalfield: false,
 	showvel: false,
 	showforce: false,
 	showfield: false,
@@ -52,6 +56,14 @@ class Body {
 	}
 }
 
+function rgb2hex(r, g, b) {
+	if (r.length) {
+		g = r[1];
+		b = r[2];
+		r = r[0];
+	}
+	return (Math.floor(r) << 16) + (Math.floor(g) << 8) + Math.floor(b);
+}
 function normDist(x, a, b) {
 	const k = (x - a) / b;
 	const o = Math.E ** (-0.5 * k * k)
@@ -61,28 +73,33 @@ function normDist(x, a, b) {
 	}
 	return o;
 }
-function callback(body) {
-	// https://www.desmos.com/calculator/k922uf64rq
+function fieldAt(pos) {
 	const x_a = vars.x_a;
 	const t_a = vars.t_a;
 	const x_b = vars.x_b;
 	const t_b = vars.t_b;
 	const g_b = vars.g_b;
-	const x = 3 - body.pos.y / 5;
+	const x = pos.y;
+	const dis = new THREE.Vector3(pos.x, 0, pos.z);
+	const length = dis.length();
+	const multi = normDist(length, -2, 1) + normDist(length, 2, 1);
+	if (multi < 1e-20) return new THREE.Vector3();
 	const comDown = normDist(x, x_a, t_a);
-	const comRadial = normDist(x, x_b, t_b) - normDist(x, x_b + (g_b * t_b), t_b);
-	const dis = new THREE.Vector3(body.pos.x, 0, body.pos.z);
-	const field = dis.normalize().multiplyScalar(comRadial);
+	const comRadial = normDist(x, x_b + (g_b * t_b), t_b) - normDist(x, x_b, t_b);
+	const field = dis.clone().multiplyScalar(comRadial);
 	field.y = comDown;
-	// const field = (new THREE.Vector3(3 * body.pos.x * body.pos.x, 3 * body.pos.y * body.pos.y, 3 * body.pos.z * body.pos.z)).multiplyScalar((1.256e-6 / (4 * Math.PI)) * (3 * 10**-2 / ((body.pos.y * body.pos.y + 9) ** (5/2))));
-	body.field.copy(field);
+	field.normalize();
+	field.multiplyScalar(multi);
 	field.multiplyScalar(10 ** vars.str);
-	field.multiplyScalar(1 / dis.length());
-	// TODO .multiplyScalar(body.charge)
+	return field;
+}
+function callback(body) {
+	const field = fieldAt(body.pos);
+	body.field.copy(field);
 	const vel = body.vel.clone();
-	vel.x *= 10;
-	vel.y *= 10;
 	const force = field.cross(vel).multiplyScalar(body.charge);
+	// force.x *= 10;
+	// force.z *= 10;
 	body.force.copy(force);
 }
 
@@ -121,28 +138,43 @@ function objPath(path, color, opacity) {
 		linejoin:  "round"
 	});
 	let geometry;
+	let maxvel = 0, maxforce = 0, maxfield = 0;
+	for (const pt of path) {
+		if (vars.showvel && pt.vel) {
+			const length = pt.vel.length();
+			if (length > maxvel) maxvel = length;
+		}
+		if (vars.showforce && pt.force) {
+			const length = pt.force.length();
+			if (length > maxforce) maxforce = length;
+		}
+		if (vars.showfield && pt.field) {
+			const length = pt.field.length();
+			if (length > maxfield) maxfield = length;
+		}
+	}
 	if (path[0] && path[0].pos) {
 		const pts = [];
 		for (const pt of path) {
 			pts.push(pt.pos);
 			if (vars.showvel && pt.vel) {
-				const length = pt.vel.length();
-				if (length > 0.2) {
-					const arrow = new THREE.ArrowHelper(pt.vel.normalize(), pt.pos, Math.log10(length), 0xFFFF00);
+				const length = pt.vel.length() / maxvel;
+				if (length > 0.1) {
+					const arrow = new THREE.ArrowHelper(pt.vel.normalize(), pt.pos, length, rgb2hex(vars.colorvel));
 					obj.add(arrow);
 				}
 			}
 			if (vars.showforce && pt.force) {
-				const length = pt.force.length() / (10 ** vars.m);
-				if (length > 0.2) {
-					const arrow = new THREE.ArrowHelper(pt.force.normalize(), pt.pos, Math.log10(length), 0x0000FF);
+				const length = pt.force.length() / maxforce;
+				if (length > 0.1) {
+					const arrow = new THREE.ArrowHelper(pt.force.normalize(), pt.pos, length, rgb2hex(vars.colorforce));
 					obj.add(arrow);
 				}
 			}
 			if (vars.showfield && pt.field) {
-				const length = pt.field.length();
-				if (length > 0.2) {
-					const arrow = new THREE.ArrowHelper(pt.field.normalize(), pt.pos, length, 0x00FF00);
+				const length = pt.field.length() / maxfield;
+				if (length > 0.1) {
+					const arrow = new THREE.ArrowHelper(pt.field.normalize(), pt.pos, length, rgb2hex(vars.colorfield));
 					obj.add(arrow);
 				}
 			}
@@ -164,11 +196,15 @@ const e_graph_z = document.getElementById("graph-z");
 const ctx_x = e_graph_x.getContext("2d");
 const ctx_y = e_graph_y.getContext("2d");
 const ctx_z = e_graph_z.getContext("2d");
-let objRays, objCoil, objScreen;
+let objRays, objCoil, objScreen, objGlobalfield;
 function update_all() {
 	update_rays();
 	update_coil();
 	update_screen();
+}
+function update_allall() {
+	update_all();
+	update_globalfield();
 }
 function update_rays() {
 	if (objRays) scene.remove(objRays);
@@ -212,10 +248,10 @@ function update_rays() {
 		for (let i = 0; i <= num; ++i) {
 			const pos = posA.clone().lerp(posB, i / num);
 			const vel = new THREE.Vector3(0, -vars.speed, 0);
-			const color = (
-				Math.round(vars.colora[0] * i / num + vars.colorb[0] * (1 - i / num)) << 16 |
-				Math.round(vars.colora[1] * i / num + vars.colorb[1] * (1 - i / num)) << 8 |
-				Math.round(vars.colora[2] * i / num + vars.colorb[2] * (1 - i / num))
+			const color = rgb2hex(
+				vars.colora[0] * i / num + vars.colorb[0] * (1 - i / num),
+				vars.colora[1] * i / num + vars.colorb[1] * (1 - i / num),
+				vars.colora[2] * i / num + vars.colorb[2] * (1 - i / num)
 			);
 			const opacity = i === 0 || i === num ? 1 : 0.3;
 			pathObj.push(pos.clone());
@@ -292,7 +328,38 @@ function update_screen() {
 	objScreen.position.y = -vars.sepy - 0.1;
 	scene.add(objScreen);
 }
-
+function update_globalfield() {
+	if (objGlobalfield) scene.remove(objGlobalfield);
+	if (!vars.showglobalfield) return;
+	const obj = new THREE.Object3D();
+	const r = (Math.max(vars.sep, vars.sepz) + 1) * 2;
+	let maxfield = 0;
+	const step = 2;
+	for (let x = -r; x <= r; x += step * 2) {
+		for (let y = -r; y <= r; y += step * 4) {
+			for (let z = -r; z <= r; z += step * 2) {
+				const field = fieldAt(new THREE.Vector3(x, y, z));
+				const length = field.length();
+				if (length > maxfield) maxfield = length;
+			}
+		}
+	}
+	for (let x = -r; x <= r; x += step) {
+		for (let y = -r; y <= r; y += step) {
+			for (let z = -r; z <= r; z += step) {
+				const pos = new THREE.Vector3(x, y, z);
+				const field = fieldAt(pos);
+				const length = Math.min(1, field.length() / maxfield);
+				if (length > 0.05) {
+					const arrow = new THREE.ArrowHelper(field.normalize(), pos, length, rgb2hex(vars.colorfield));
+					obj.add(arrow);
+				}
+			}
+		}
+	}
+	objGlobalfield = obj;
+	scene.add(obj);
+}
 // Setup a GUI to mess with variables
 
 const gui = new DAT.GUI({
@@ -304,37 +371,41 @@ const gui = new DAT.GUI({
 {
 	const folder_field = gui.addFolder("Magnetic Field");
 		folder_field.open();
-		folder_field.add(vars, "str", -20, 0).name("Strength OoM").onChange(update_all);
+		folder_field.add(vars, "str", -50, 50).name("Strength OoM").onChange(update_all);
 		const folder_field_down = folder_field.addFolder("Down Component");
 			folder_field_down.open();
-			folder_field_down.add(vars, "x_a", -5, 10).name("Offset / m").onChange(update_all);
-			folder_field_down.add(vars, "t_a", -5, 10).name("Std Dev / m").onChange(update_all);
+			folder_field_down.add(vars, "x_a", -50, 50).name("Offset / m").onChange(update_allall);
+			folder_field_down.add(vars, "t_a", -50, 50).name("Std Dev / m").onChange(update_allall);
 		const folder_field_radial = folder_field.addFolder("Radial Component");
 			folder_field_radial.open();
-			folder_field_radial.add(vars, "x_b", -20, 20).name("Offset / m").onChange(update_all);
-			folder_field_radial.add(vars, "t_b", -20, 20).name("Std Dev / m").onChange(update_all);
-			folder_field_radial.add(vars, "g_b", -20, 20).name("Reverse Offset").onChange(update_all);
+			folder_field_radial.add(vars, "x_b", -50, 50).name("Offset / m").onChange(update_allall);
+			folder_field_radial.add(vars, "t_b", -50, 50).name("Std Dev / m").onChange(update_allall);
+			folder_field_radial.add(vars, "g_b", -50, 50).name("Reverse Offset").onChange(update_allall);
 	const folder_particles = gui.addFolder("Particles");
 		folder_particles.open();
 		folder_particles.add(vars, "m", -40, -10).name("Mass OoM").onChange(update_all);
 		folder_particles.add(vars, "mneg").name("Mass Negative?").onChange(update_all);
 		folder_particles.add(vars, "q", -40, -10).name("Charge OoM").onChange(update_all);
 		folder_particles.add(vars, "qneg").name("Charge Negative?").onChange(update_all);
-		folder_particles.add(vars, "sep", 0, 10).name("Length / m").onChange(update_all);
-		folder_particles.add(vars, "sepz", 0, 10).name("Width / m").onChange(update_all);
+		folder_particles.add(vars, "sep", 0, 20).name("Length / m").onChange(update_all);
+		folder_particles.add(vars, "sepz", 0, 20).name("Width / m").onChange(update_all);
 		folder_particles.add(vars, "sepy", 0.1, 100).name("Vertical Gap / m").onChange(update_all);
 		folder_particles.add(vars, "density", 0, 100, 1).name("Density / m^-1").onChange(update_all);
-		folder_particles.add(vars, "speed", 0.1, 50).name("Down Vel / ms^-1").onChange(update_all);
+		folder_particles.add(vars, "speed", 0.1, 100).name("Down Vel / ms^-1").onChange(update_all);
 	const folder_sim = gui.addFolder("Simulation");
 		folder_sim.open();
 		folder_sim.add(vars, "steps", 1, 1e4, 1).name("Steps").onChange(update_all);
 		folder_sim.add(vars, "timeStep", 1e-6, 1).name("Time Step").onChange(update_all);
 	const folder_looks = gui.addFolder("Looks");
 		folder_looks.open();
+		folder_looks.add(vars, "showglobalfield").name("Show Global Field").onChange(update_globalfield);
 		folder_looks.add(vars, "showvel").name("Show Velocity").onChange(update_all);
 		folder_looks.add(vars, "showfield").name("Show Field").onChange(update_all);
 		folder_looks.add(vars, "showforce").name("Show Force").onChange(update_all);
-		folder_looks.add(vars, "arrowdensity", 1, 15, 1).name("Arrow Density / m^-1").onChange(update_all)
+		folder_looks.add(vars, "arrowdensity", 1, 15, 1).name("Arrow Density / m^-1").onChange(update_all);
+		folder_looks.addColor(vars, "colorvel").name("Vel Color").onChange(update_all);
+		folder_looks.addColor(vars, "colorfield").name("Field Color").onChange(update_all);
+		folder_looks.addColor(vars, "colorforce").name("Force Color").onChange(update_all);
 		folder_looks.addColor(vars, "colorbg").name("Background").onChange(() => {
 			scene.background.r = vars.colorbg[0] / 255;
 			scene.background.g = vars.colorbg[1] / 255;

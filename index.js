@@ -65,7 +65,7 @@ function onMouseUp(event) {
 	can.releasePointerCapture(event.pointerId);
 }
 function onScroll(event) {
-	camera.zoomTarget += event.deltaY / 2;
+	camera.zoomTarget *= event.deltaY > 0 ? 2 : 0.5;
 	if (camera.zoomTarget < 5)
 		camera.zoomTarget = 5;
 	else if (camera.zoomTarget > camera.far)
