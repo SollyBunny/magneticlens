@@ -64,6 +64,16 @@ function onMouseUp(event) {
 	dragStart = undefined;
 	can.releasePointerCapture(event.pointerId);
 }
+function onKey(event) {
+	if (event.key.toLowerCase() === "i")
+		camera.zoomTarget *= 0.5;
+	else if (event.key.toLowerCase() === "o")
+		camera.zoomTarget *= 2;
+	if (camera.zoomTarget < 5)
+		camera.zoomTarget = 5;
+	else if (camera.zoomTarget > camera.far)
+		camera.zoomTarget = camera.far;	
+}
 function onScroll(event) {
 	camera.zoomTarget *= event.deltaY > 0 ? 2 : 0.5;
 	if (camera.zoomTarget < 5)
@@ -76,6 +86,7 @@ can.addEventListener("pointerdown", onMouseDown);
 can.addEventListener("pointermove", onMouseMove);
 can.addEventListener("pointerup", onMouseUp);
 can.addEventListener("pointercancel", onMouseUp);
+document.addEventListener("keydown", onKey);
 can.addEventListener("wheel", onScroll, { passive: true });
 
 const timing = {
